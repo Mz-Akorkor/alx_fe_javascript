@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const LOCAL_KEY = 'quotes';
   const FILTER_KEY = 'selectedCategory';
-  const SERVER_URL = 'https://jsonplaceholder.typicode.com/posts'; // Mock API
+  const SERVER_URL = 'https://jsonplaceholder.typicode.com/posts';
 
   let quotes = [
     { text: "The best way to predict the future is to create it.", category: "Motivation", updatedAt: Date.now() },
@@ -17,9 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const syncBtn = document.getElementById('syncBtn');
   const status = document.getElementById('status');
 
-  // -------------------------------
-  // STORAGE FUNCTIONS
-  // -------------------------------
+  // Save and load quotes
   function saveQuotes() {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(quotes));
   }
@@ -36,9 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // -------------------------------
-  // CATEGORY + DISPLAY FUNCTIONS
-  // -------------------------------
+  // Populate categories
   function populateCategories() {
     const uniqueCategories = [...new Set(quotes.map(q => q.category))];
     categoryFilter.innerHTML = `<option value="all">All Categories</option>`;
@@ -53,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedFilter) categoryFilter.value = savedFilter;
   }
 
+  // Display and filter quotes
   function showRandomQuote() {
     const selectedCategory = categoryFilter.value;
     const filtered = selectedCategory === 'all' ? quotes : quotes.filter(q => q.category === selectedCategory);
@@ -71,9 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     quoteDisplay.innerHTML = filtered.map(q => `"${q.text}" <small>[${q.category}]</small>`).join('<br>');
   }
 
-  // -------------------------------
-  // ADD NEW QUOTE + POST TO SERVER
-  // -------------------------------
+  // Add quote and POST to server
   function addQuote() {
     const text = newQuoteText.value.trim();
     const category = newQuoteCategory.value.trim();
@@ -90,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
     newQuoteText.value = '';
     newQuoteCategory.value = '';
     showNotification(`New quote added under "${category}".`);
-
     postQuoteToServer(newQuote);
   }
 
@@ -115,9 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // -------------------------------
-  // FETCH + SYNC (SERVER INTERACTION)
-  // -------------------------------
+  // Fetch from server
   async function fetchQuotesFromServer() {
     try {
       const response = await fetch(SERVER_URL);
@@ -133,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ✅ REQUIRED FUNCTION: syncQuotes
+  //  REQUIRED FUNCTION: syncQuotes
   async function syncQuotes() {
     showNotification("Syncing quotes with server...");
     const serverQuotes = await fetchQuotesFromServer();
@@ -159,27 +151,23 @@ document.addEventListener('DOMContentLoaded', () => {
       saveQuotes();
       populateCategories();
       filterQuotes();
-      showNotification(`${updatedCount} quote(s) updated from server.`);
+      showNotification("Quotes synced with server!");
     } else {
       showNotification("No updates found during sync.");
     }
   }
 
-  // -------------------------------
-  // NOTIFICATION SYSTEM (UI FEEDBACK)
-  // -------------------------------
+  // Notification UI
   function showNotification(message) {
     status.textContent = `Status: ${message}`;
-    status.style.backgroundColor = "#f0f0f0";
+    status.style.backgroundColor = "#eef";
     setTimeout(() => {
       status.textContent = "Status: Idle";
       status.style.backgroundColor = "transparent";
     }, 4000);
   }
 
-  // -------------------------------
-  // EVENT LISTENERS + PERIODIC SYNC
-  // -------------------------------
+  // Event listeners + periodic sync
   newQuoteBtn.addEventListener('click', showRandomQuote);
   addQuoteBtn.addEventListener('click', addQuote);
   categoryFilter.addEventListener('change', filterQuotes);
@@ -189,6 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
   populateCategories();
   filterQuotes();
 
-  // ✅ Periodically check for new quotes (every 1 min)
+  //Periodically check every 1 minute
   setInterval(syncQuotes, 60000);
 });
