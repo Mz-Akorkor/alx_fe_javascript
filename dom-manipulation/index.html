@@ -1,12 +1,13 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic Quote Generator with Category Filter</title>
+  <title>Dynamic Quote Generator (with Server Sync)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
+      background-color: #f9f9f9;
       text-align: center;
       padding: 40px;
     }
@@ -22,11 +23,7 @@
       color: #333;
     }
 
-    .controls {
-      margin: 12px 0;
-    }
-
-    select, input[type="text"], button {
+    select, input, button {
       padding: 8px;
       margin: 6px;
       border-radius: 5px;
@@ -45,35 +42,37 @@
       background-color: #0056b3;
     }
 
-    button.secondary {
-      background-color: #6c757d;
+    #status {
+      margin-top: 10px;
+      color: #555;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
   <h1>Dynamic Quote Generator</h1>
 
-  <div class="controls">
+  <div>
     <label for="categoryFilter"><strong>Filter by Category:</strong></label>
     <select id="categoryFilter" onchange="filterQuotes()">
       <option value="all">All Categories</option>
     </select>
   </div>
 
-  <div id="quoteDisplay">Click "Show New Quote" to display a quote.</div>
+  <div id="quoteDisplay">Click "Show New Quote" to see a random quote.</div>
 
-  <div class="controls">
+  <div>
     <button id="newQuote">Show New Quote</button>
-    <button id="exportBtn" class="secondary">Export Quotes</button>
-    <input type="file" id="importFile" accept=".json" />
-    <button id="clearStorage" class="secondary">Clear Quotes</button>
+    <button id="syncBtn">Sync with Server</button>
   </div>
 
-  <div style="margin-top:16px;">
+  <div>
     <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
     <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
     <button id="addQuoteBtn">Add Quote</button>
   </div>
+
+  <div id="status">Status: Idle</div>
 
   <script src="script.js"></script>
 </body>
