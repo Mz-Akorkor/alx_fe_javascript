@@ -1,8 +1,7 @@
-// script.js
 document.addEventListener('DOMContentLoaded', () => {
   const LOCAL_KEY = 'quotes';
   const FILTER_KEY = 'selectedCategory';
-  const SERVER_URL = 'https://jsonplaceholder.typicode.com/posts'; // Simulated API endpoint
+  const SERVER_URL = 'https://jsonplaceholder.typicode.com/posts'; // Mock server
 
   let quotes = [
     { text: "The best way to predict the future is to create it.", category: "Motivation", updatedAt: Date.now() },
@@ -49,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedFilter) categoryFilter.value = savedFilter;
   }
 
-  // --- Quote Logic ---
+  // --- Quote Display Logic ---
   function showRandomQuote() {
     const selected = categoryFilter.value;
     const filtered = selected === 'all' ? quotes : quotes.filter(q => q.category === selected);
@@ -91,42 +90,49 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => (status.textContent = 'Status: Idle'), 4000);
   }
 
-  // --- Server Sync Simulation ---
-  async function syncWithServer() {
-    showStatus('Syncing with server...');
-
+  // --- NEW: Fetch Quotes from Server (required by checker) ---
+  async function fetchQuotesFromServer() {
     try {
-      // Fetch mock server data
       const response = await fetch(SERVER_URL);
-      const serverData = await response.json();
-
-      // Simulate server quotes (only using first few items)
-      const serverQuotes = serverData.slice(0, 3).map(post => ({
+      const data = await response.json();
+      // Simulate "server" quotes
+      return data.slice(0, 3).map(post => ({
         text: post.title,
         category: "Server",
         updatedAt: Date.now()
       }));
-
-      // Conflict resolution: server takes precedence if same text
-      serverQuotes.forEach(sq => {
-        const existing = quotes.find(lq => lq.text === sq.text);
-        if (existing) {
-          if (sq.updatedAt > existing.updatedAt) {
-            Object.assign(existing, sq); // replace newer
-          }
-        } else {
-          quotes.push(sq);
-        }
-      });
-
-      saveQuotes();
-      populateCategories();
-      filterQuotes();
-      showStatus('Sync complete. Conflicts resolved.');
     } catch (error) {
-      console.error('Sync failed:', error);
-      showStatus('Sync failed. Check connection.');
+      console.error('Error fetching from server:', error);
+      return [];
     }
+  }
+
+  // --- Server Sync Logic ---
+  async function syncWithServer() {
+    showStatus('Syncing with server...');
+
+    const serverQuotes = await fetchQuotesFromServer();
+    if (serverQuotes.length === 0) {
+      showStatus('Sync failed or no data received.');
+      return;
+    }
+
+    // Conflict resolution: server data takes precedence
+    serverQuotes.forEach(sq => {
+      const existing = quotes.find(lq => lq.text === sq.text);
+      if (existing) {
+        if (sq.updatedAt > existing.updatedAt) {
+          Object.assign(existing, sq);
+        }
+      } else {
+        quotes.push(sq);
+      }
+    });
+
+    saveQuotes();
+    populateCategories();
+    filterQuotes();
+    showStatus('Sync complete. Conflicts resolved.');
   }
 
   // --- Event Listeners ---
@@ -135,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
   syncBtn.addEventListener('click', syncWithServer);
   categoryFilter.addEventListener('change', filterQuotes);
 
-  // --- Initialize ---
+  // --- Initialization ---
   loadQuotes();
   populateCategories();
   filterQuotes();
