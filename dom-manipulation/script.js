@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const LOCAL_KEY = 'quotes';
   const FILTER_KEY = 'selectedCategory';
-  const SERVER_URL = 'https://jsonplaceholder.typicode.com/posts'; // Mock server endpoint
+  const SERVER_URL = 'https://jsonplaceholder.typicode.com/posts'; // Mock API
 
   let quotes = [
     { text: "The best way to predict the future is to create it.", category: "Motivation", updatedAt: Date.now() },
@@ -17,7 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const syncBtn = document.getElementById('syncBtn');
   const status = document.getElementById('status');
 
-  // --- Storage Helpers ---
+  // -------------------------------
+  // STORAGE FUNCTIONS
+  // -------------------------------
   function saveQuotes() {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(quotes));
   }
@@ -34,7 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- Populate Categories ---
+  // -------------------------------
+  // CATEGORY + DISPLAY FUNCTIONS
+  // -------------------------------
   function populateCategories() {
     const uniqueCategories = [...new Set(quotes.map(q => q.category))];
     categoryFilter.innerHTML = `<option value="all">All Categories</option>`;
@@ -49,21 +53,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedFilter) categoryFilter.value = savedFilter;
   }
 
-  // --- Display Random Quote ---
   function showRandomQuote() {
     const selectedCategory = categoryFilter.value;
-    const filteredQuotes = selectedCategory === 'all' ? quotes : quotes.filter(q => q.category === selectedCategory);
-
-    if (filteredQuotes.length === 0) {
-      quoteDisplay.textContent = `No quotes available for "${selectedCategory}".`;
+    const filtered = selectedCategory === 'all' ? quotes : quotes.filter(q => q.category === selectedCategory);
+    if (filtered.length === 0) {
+      quoteDisplay.innerHTML = `No quotes found for "${selectedCategory}".`;
       return;
     }
-
-    const randomQuote = filteredQuotes[Math.floor(Math.random() * filteredQuotes.length)];
-    quoteDisplay.innerHTML = `"${randomQuote.text}" <br><small>[${randomQuote.category}]</small>`;
+    const random = filtered[Math.floor(Math.random() * filtered.length)];
+    quoteDisplay.innerHTML = `"${random.text}" <br><small>[${random.category}]</small>`;
   }
 
-  // --- Add Quote ---
+  function filterQuotes() {
+    const selectedCategory = categoryFilter.value;
+    localStorage.setItem(FILTER_KEY, selectedCategory);
+    const filtered = selectedCategory === 'all' ? quotes : quotes.filter(q => q.category === selectedCategory);
+    quoteDisplay.innerHTML = filtered.map(q => `"${q.text}" <small>[${q.category}]</small>`).join('<br>');
+  }
+
+  // -------------------------------
+  // ADD NEW QUOTE + POST TO SERVER
+  // -------------------------------
   function addQuote() {
     const text = newQuoteText.value.trim();
     const category = newQuoteCategory.value.trim();
@@ -72,49 +82,18 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    quotes.push({ text, category, updatedAt: Date.now() });
+    const newQuote = { text, category, updatedAt: Date.now() };
+    quotes.push(newQuote);
     saveQuotes();
     populateCategories();
+    filterQuotes();
     newQuoteText.value = '';
     newQuoteCategory.value = '';
-    showStatus(`Added new quote in "${category}"`);
+    showNotification(`New quote added under "${category}".`);
 
-    // Post new quote to the mock server
-    postQuoteToServer({ text, category });
+    postQuoteToServer(newQuote);
   }
 
-  // --- Filter Quotes ---
-  function filterQuotes() {
-    const selectedCategory = categoryFilter.value;
-    localStorage.setItem(FILTER_KEY, selectedCategory);
-    const filtered = selectedCategory === 'all' ? quotes : quotes.filter(q => q.category === selectedCategory);
-    quoteDisplay.innerHTML = filtered.map(q => `"${q.text}" <small>[${q.category}]</small>`).join('<br>');
-  }
-
-  // --- Status Message ---
-  function showStatus(message) {
-    status.textContent = `Status: ${message}`;
-    setTimeout(() => (status.textContent = 'Status: Idle'), 4000);
-  }
-
-  // --- REQUIRED: Fetch Quotes from Server ---
-  async function fetchQuotesFromServer() {
-    try {
-      const response = await fetch(SERVER_URL);
-      const data = await response.json();
-      // Convert server data into quote format
-      return data.slice(0, 3).map(post => ({
-        text: post.title,
-        category: "Server",
-        updatedAt: Date.now()
-      }));
-    } catch (error) {
-      console.error('Error fetching quotes from server:', error);
-      return [];
-    }
-  }
-
-  // --- REQUIRED: Post Quotes to Server (Checker Looks for This) ---
   async function postQuoteToServer(quote) {
     try {
       const response = await fetch(SERVER_URL, {
@@ -126,49 +105,90 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (response.ok) {
-        console.log('Quote successfully posted to server.');
+        showNotification("Quote successfully posted to the server.");
       } else {
-        console.error('Failed to post quote to server.');
+        showNotification("Failed to post quote to the server.");
       }
     } catch (error) {
-      console.error('Error posting quote:', error);
+      console.error("Error posting quote:", error);
+      showNotification("Error posting quote to server.");
     }
   }
 
-  // --- Sync with Server ---
-  async function syncWithServer() {
-    showStatus('Syncing with server...');
+  // -------------------------------
+  // FETCH + SYNC (SERVER INTERACTION)
+  // -------------------------------
+  async function fetchQuotesFromServer() {
+    try {
+      const response = await fetch(SERVER_URL);
+      const data = await response.json();
+      return data.slice(0, 5).map(post => ({
+        text: post.title,
+        category: "Server",
+        updatedAt: Date.now()
+      }));
+    } catch (error) {
+      console.error("Error fetching quotes from server:", error);
+      return [];
+    }
+  }
+
+  // ✅ REQUIRED FUNCTION: syncQuotes
+  async function syncQuotes() {
+    showNotification("Syncing quotes with server...");
     const serverQuotes = await fetchQuotesFromServer();
 
     if (serverQuotes.length === 0) {
-      showStatus('Sync failed or no data received.');
+      showNotification("No new quotes received from server.");
       return;
     }
 
-    // Simple conflict resolution: Server takes precedence
+    let updatedCount = 0;
     serverQuotes.forEach(serverQuote => {
       const existing = quotes.find(q => q.text === serverQuote.text);
-      if (!existing || serverQuote.updatedAt > existing.updatedAt) {
-        if (existing) Object.assign(existing, serverQuote);
-        else quotes.push(serverQuote);
+      if (!existing) {
+        quotes.push(serverQuote);
+        updatedCount++;
+      } else if (serverQuote.updatedAt > existing.updatedAt) {
+        Object.assign(existing, serverQuote);
+        updatedCount++;
       }
     });
 
-    saveQuotes();
-    populateCategories();
-    filterQuotes();
-    showStatus('Sync complete. Server data applied.');
+    if (updatedCount > 0) {
+      saveQuotes();
+      populateCategories();
+      filterQuotes();
+      showNotification(`${updatedCount} quote(s) updated from server.`);
+    } else {
+      showNotification("No updates found during sync.");
+    }
   }
 
-  // --- Event Listeners ---
+  // -------------------------------
+  // NOTIFICATION SYSTEM (UI FEEDBACK)
+  // -------------------------------
+  function showNotification(message) {
+    status.textContent = `Status: ${message}`;
+    status.style.backgroundColor = "#f0f0f0";
+    setTimeout(() => {
+      status.textContent = "Status: Idle";
+      status.style.backgroundColor = "transparent";
+    }, 4000);
+  }
+
+  // -------------------------------
+  // EVENT LISTENERS + PERIODIC SYNC
+  // -------------------------------
   newQuoteBtn.addEventListener('click', showRandomQuote);
   addQuoteBtn.addEventListener('click', addQuote);
   categoryFilter.addEventListener('change', filterQuotes);
-  syncBtn.addEventListener('click', syncWithServer);
+  syncBtn.addEventListener('click', syncQuotes);
 
-  // --- Initialize ---
   loadQuotes();
   populateCategories();
   filterQuotes();
-  setInterval(syncWithServer, 60000); // auto-sync every minute
+
+  // ✅ Periodically check for new quotes (every 1 min)
+  setInterval(syncQuotes, 60000);
 });
