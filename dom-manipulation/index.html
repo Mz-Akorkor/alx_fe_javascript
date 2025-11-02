@@ -1,9 +1,8 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dynamic Quote Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamic Quote Generator with Category Filter</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -27,60 +26,55 @@
       margin: 12px 0;
     }
 
-    input[type="text"] {
+    select, input[type="text"], button {
       padding: 8px;
       margin: 6px;
-      width: 220px;
-      border: 1px solid #ccc;
       border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 14px;
     }
 
     button {
-      padding: 8px 14px;
-      margin: 6px;
-      border: none;
-      border-radius: 5px;
       background-color: #007bff;
       color: white;
-      font-size: 14px;
       cursor: pointer;
+      border: none;
+    }
+
+    button:hover {
+      background-color: #0056b3;
     }
 
     button.secondary {
-      background: #6c757d;
-    }
-
-    #importFile {
-      display: inline-block;
-      margin-top: 10px;
-    }
-
-    small {
-      color: #666;
+      background-color: #6c757d;
     }
   </style>
 </head>
 <body>
   <h1>Dynamic Quote Generator</h1>
 
+  <div class="controls">
+    <label for="categoryFilter"><strong>Filter by Category:</strong></label>
+    <select id="categoryFilter" onchange="filterQuotes()">
+      <option value="all">All Categories</option>
+    </select>
+  </div>
+
   <div id="quoteDisplay">Click "Show New Quote" to display a quote.</div>
 
   <div class="controls">
     <button id="newQuote">Show New Quote</button>
-    <button id="exportBtn" class="secondary">Export Quotes (JSON)</button>
-    <!-- Import file input -->
+    <button id="exportBtn" class="secondary">Export Quotes</button>
     <input type="file" id="importFile" accept=".json" />
-    <button id="clearStorage" class="secondary">Clear Saved Quotes</button>
+    <button id="clearStorage" class="secondary">Clear Quotes</button>
   </div>
 
-  <!-- Simple form (static) to add quotes -->
-  <div id="addQuoteSection" style="margin-top:16px;">
+  <div style="margin-top:16px;">
     <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
     <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
     <button id="addQuoteBtn">Add Quote</button>
   </div>
 
-  <!-- The script -->
   <script src="script.js"></script>
 </body>
 </html>

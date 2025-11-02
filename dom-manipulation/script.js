@@ -1,9 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Storage keys
   const LOCAL_KEY = 'quotes';
+  const FILTER_KEY = 'selectedCategory';
   const SESSION_LAST_INDEX = 'lastViewedQuoteIndex';
 
-  // Default quotes if no localStorage present
   let quotes = [
     { text: "The best way to predict the future is to create it.", category: "Motivation" },
     { text: "In the middle of every difficulty lies opportunity.", category: "Inspiration" },
@@ -11,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     { text: "Do what you can, with what you have, where you are.", category: "Action" }
   ];
 
-  // DOM elements
   const quoteDisplay = document.getElementById('quoteDisplay');
   const newQuoteBtn = document.getElementById('newQuote');
   const exportBtn = document.getElementById('exportBtn');
@@ -20,212 +18,153 @@ document.addEventListener('DOMContentLoaded', () => {
   const addQuoteBtn = document.getElementById('addQuoteBtn');
   const newQuoteText = document.getElementById('newQuoteText');
   const newQuoteCategory = document.getElementById('newQuoteCategory');
+  const categoryFilter = document.getElementById('categoryFilter');
 
-  // ---------- Utilities ----------
-  // Save quotes array to localStorage
+  // --- Storage Helpers ---
   function saveQuotes() {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(quotes));
   }
 
-  // Load quotes from localStorage if present
   function loadQuotes() {
     const stored = localStorage.getItem(LOCAL_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          quotes = parsed;
-        }
+        if (Array.isArray(parsed)) quotes = parsed;
       } catch (err) {
         console.error('Failed to parse stored quotes:', err);
       }
     }
   }
 
-  // Save last viewed index to sessionStorage
-  function saveLastViewedIndex(index) {
-    sessionStorage.setItem(SESSION_LAST_INDEX, String(index));
+  function saveSelectedCategory(cat) {
+    localStorage.setItem(FILTER_KEY, cat);
   }
 
-  // Get last viewed index from sessionStorage (or null)
-  function getLastViewedIndex() {
-    const idx = sessionStorage.getItem(SESSION_LAST_INDEX);
-    return idx === null ? null : parseInt(idx, 10);
+  function getSavedCategory() {
+    return localStorage.getItem(FILTER_KEY) || 'all';
   }
 
-  // ---------- Core features ----------
+  // --- UI Updates ---
+  function populateCategories() {
+    const uniqueCats = [...new Set(quotes.map(q => q.category))];
+    categoryFilter.innerHTML = `<option value="all">All Categories</option>`;
+    uniqueCats.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = cat;
+      option.textContent = cat;
+      categoryFilter.appendChild(option);
+    });
+
+    // Restore last saved category filter
+    const savedCat = getSavedCategory();
+    categoryFilter.value = savedCat;
+  }
+
   function showRandomQuote() {
-    if (quotes.length === 0) {
-      quoteDisplay.innerHTML = "<em>No quotes available. Add one below!</em>";
+    const selectedCategory = categoryFilter.value;
+    const filteredQuotes = selectedCategory === 'all'
+      ? quotes
+      : quotes.filter(q => q.category === selectedCategory);
+
+    if (filteredQuotes.length === 0) {
+      quoteDisplay.innerHTML = `<em>No quotes available for "${selectedCategory}".</em>`;
       return;
     }
 
-    const randomIndex = Math.floor(Math.random() * quotes.length);
-    const q = quotes[randomIndex];
-
-    // show with innerHTML so categories can be styled if desired
+    const randomIndex = Math.floor(Math.random() * filteredQuotes.length);
+    const q = filteredQuotes[randomIndex];
     quoteDisplay.innerHTML = `
-      <p style="font-size:1.05em; margin:0 0 6px 0">"${q.text}"</p>
+      <p>"${q.text}"</p>
       <small>— [${q.category}]</small>
-      <div style="margin-top:8px;"><small>Index: ${randomIndex}</small></div>
     `;
 
-    // save last viewed index to sessionStorage
-    saveLastViewedIndex(randomIndex);
+    sessionStorage.setItem(SESSION_LAST_INDEX, randomIndex);
   }
 
-  // Add a new quote from inputs (and persist)
   function addQuote() {
     const text = newQuoteText.value.trim();
     const category = newQuoteCategory.value.trim();
 
-    if (text === "" || category === "") {
-      alert("Please enter both a quote and a category.");
+    if (!text || !category) {
+      alert('Please enter both a quote and a category.');
       return;
     }
 
-    const newObj = { text, category };
-    quotes.push(newObj);
-    saveQuotes(); // persist to localStorage
-
-    // Clear input fields and give immediate feedback
+    quotes.push({ text, category });
+    saveQuotes();
+    populateCategories(); // refresh dropdown
+    quoteDisplay.innerHTML = `<strong>Added new quote in "${category}"!</strong>`;
     newQuoteText.value = '';
     newQuoteCategory.value = '';
-    quoteDisplay.innerHTML = `<strong>New quote added in "${category}" category!</strong>`;
   }
 
-  // Export quotes as JSON file
-  function exportQuotesAsJson() {
-    try {
-      const jsonStr = JSON.stringify(quotes, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+  function filterQuotes() {
+    const selectedCategory = categoryFilter.value;
+    saveSelectedCategory(selectedCategory);
 
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'quotes_export.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      alert('Failed to export quotes: ' + err.message);
+    const filtered = selectedCategory === 'all'
+      ? quotes
+      : quotes.filter(q => q.category === selectedCategory);
+
+    if (filtered.length === 0) {
+      quoteDisplay.innerHTML = `<em>No quotes in category "${selectedCategory}".</em>`;
+    } else {
+      const list = filtered.map(q => `<p>"${q.text}" <small>[${q.category}]</small></p>`).join('');
+      quoteDisplay.innerHTML = list;
     }
   }
 
-  // Import quotes from a JSON file selected by the user
+  // --- Import & Export ---
+  function exportQuotes() {
+    const jsonStr = JSON.stringify(quotes, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'quotes_export.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   function importFromJsonFile(file) {
-    if (!file) {
-      alert('No file selected.');
-      return;
-    }
-
     const reader = new FileReader();
-    reader.onload = function (evt) {
+    reader.onload = e => {
       try {
-        const imported = JSON.parse(evt.target.result);
-
-        // Validate imported structure: expect array of objects with text & category
-        if (!Array.isArray(imported)) {
-          throw new Error('Imported JSON must be an array of quote objects.');
-        }
-
-        const valid = imported.every(item => item && typeof item.text === 'string' && typeof item.category === 'string');
-        if (!valid) {
-          throw new Error('Each quote must be an object with "text" and "category" string properties.');
-        }
-
-        // Merge imported quotes into current quotes
+        const imported = JSON.parse(e.target.result);
+        if (!Array.isArray(imported)) throw new Error('Invalid JSON structure');
         quotes.push(...imported);
-        saveQuotes(); // persist updated list
-        quoteDisplay.innerHTML = `<strong>Quotes imported successfully! (${imported.length})</strong>`;
+        saveQuotes();
+        populateCategories();
+        quoteDisplay.innerHTML = `<strong>Imported ${imported.length} quotes successfully!</strong>`;
       } catch (err) {
         alert('Import failed: ' + err.message);
       }
     };
-
-    reader.onerror = function () {
-      alert('Failed to read the file.');
-    };
-
     reader.readAsText(file);
   }
 
-  // Clear stored quotes (confirmation)
-  function clearStoredQuotes() {
-    if (!confirm('This will clear all saved quotes from localStorage. Continue?')) return;
+  function clearStorage() {
+    if (!confirm('This will clear all saved quotes. Continue?')) return;
     localStorage.removeItem(LOCAL_KEY);
-    quotes = []; // clear in-memory
-    quoteDisplay.innerHTML = '<em>All saved quotes cleared.</em>';
+    quotes = [];
+    populateCategories();
+    quoteDisplay.innerHTML = `<em>All quotes cleared.</em>`;
   }
 
-  // Display last viewed quote (if sessionStorage had it)
-  function showLastViewedIfPresent() {
-    const lastIndex = getLastViewedIndex();
-    if (lastIndex !== null && quotes[lastIndex]) {
-      const q = quotes[lastIndex];
-      quoteDisplay.innerHTML = `
-        <p style="font-size:1.05em; margin:0 0 6px 0">Last viewed: "${q.text}"</p>
-        <small>— [${q.category}]</small>
-      `;
-    }
-  }
-
-  // ---------- Initialization ----------
-  // Load persisted quotes from localStorage (if present)
-  loadQuotes();
-
-  // Show last viewed quote if present in sessionStorage
-  showLastViewedIfPresent();
-
-  // Attach event listeners
+  // --- Event Listeners ---
   newQuoteBtn.addEventListener('click', showRandomQuote);
   addQuoteBtn.addEventListener('click', addQuote);
-  exportBtn.addEventListener('click', exportQuotesAsJson);
-  clearStorageBtn.addEventListener('click', clearStoredQuotes);
-
-  // Handle import file input change
-  importFile.addEventListener('change', function (evt) {
-    const file = evt.target.files && evt.target.files[0];
-    if (file) {
-      importFromJsonFile(file);
-      // reset input so same file can be re-selected later if needed
-      importFile.value = '';
-    }
+  exportBtn.addEventListener('click', exportQuotes);
+  clearStorageBtn.addEventListener('click', clearStorage);
+  importFile.addEventListener('change', e => {
+    if (e.target.files[0]) importFromJsonFile(e.target.files[0]);
   });
 
-  // Also create a small dynamic form as extra demonstration (optional)
-  function createAddQuoteFormDynamic() {
-    const container = document.createElement('div');
-    container.style.marginTop = '18px';
-
-    const iText = document.createElement('input');
-    iText.placeholder = 'Dynamic quote text';
-    const iCat = document.createElement('input');
-    iCat.placeholder = 'Dynamic category';
-    const iBtn = document.createElement('button');
-    iBtn.textContent = 'Add Dynamic Quote';
-
-    iBtn.addEventListener('click', () => {
-      const t = iText.value.trim();
-      const c = iCat.value.trim();
-      if (!t || !c) {
-        alert('Fill both fields in dynamic form.');
-        return;
-      }
-      quotes.push({ text: t, category: c });
-      saveQuotes();
-      iText.value = '';
-      iCat.value = '';
-      quoteDisplay.innerHTML = `<em>Dynamic quote added in "${c}"</em>`;
-    });
-
-    container.appendChild(iText);
-    container.appendChild(iCat);
-    container.appendChild(iBtn);
-    document.body.appendChild(container);
-  }
-
-  // Create extra dynamic form
-  createAddQuoteFormDynamic();
+  // --- Initialization ---
+  loadQuotes();
+  populateCategories();
+  filterQuotes();
 });
